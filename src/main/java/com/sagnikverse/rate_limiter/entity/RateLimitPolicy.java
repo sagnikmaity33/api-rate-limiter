@@ -14,6 +14,10 @@ public class RateLimitPolicy {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
+    @Enumerated(EnumType.STRING)
+    private Tier tier;
+
     private String identifierType; // USER / IP / API_KEY
 
     private Integer capacity;

@@ -1,9 +1,12 @@
 package com.sagnikverse.rate_limiter.service;
 
 import com.sagnikverse.rate_limiter.entity.RateLimitPolicy;
+import com.sagnikverse.rate_limiter.entity.RequestLog;
+import com.sagnikverse.rate_limiter.entity.Tier;
 import com.sagnikverse.rate_limiter.entity.TokenBucket;
 import com.sagnikverse.rate_limiter.exception.RateLimitExceededException;
 import com.sagnikverse.rate_limiter.repository.RateLimitPolicyRepository;
+import com.sagnikverse.rate_limiter.repository.RequestLogRepository;
 import com.sagnikverse.rate_limiter.repository.TokenBucketRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,37 +21,70 @@ public class TokenBucketService {
 
     private final TokenBucketRepository bucketRepository;
     private final RateLimitPolicyRepository policyRepository;
+    private final SubscriptionService subscriptionService;
+    private final RequestLogRepository requestLogRepository;
+    
+    private void logRequest(String identifier, Tier tier, boolean allowed) {
+
+        requestLogRepository.save(
+                RequestLog.builder()
+                        .identifier(identifier)
+                        .tier(tier)
+                        .allowed(allowed)
+                        .timestamp(LocalDateTime.now())
+                        .build()
+        );
+    }
 
     @Transactional
-    public void allowRequest(String identifier) {
+    public boolean allowRequest(String identifier) {
 
-        String type = identifier.split(":")[0];
+        Tier tier = subscriptionService.getTier(identifier);
+
+        // UNLIMITED bypass
+        if (tier == Tier.UNLIMITED) {
+            logRequest(identifier, tier, true);
+            return true;
+        }
 
         RateLimitPolicy policy = policyRepository
-                .findByIdentifierTypeAndActiveTrue(type)
+                .findByTierAndActiveTrue(tier)
                 .orElseThrow(() ->
                         new RuntimeException("Policy not found"));
 
         TokenBucket bucket = bucketRepository
-                .findByIdentifier(identifier)
-                .orElseGet(() -> createBucket(identifier, policy));
+                .findByIdentifierForUpdate(identifier)
+                .orElse(null);
+
+        // If bucket exists but tier policy changed (upgrade/downgrade)
+        if (bucket != null &&
+                (!bucket.getCapacity().equals(policy.getCapacity()) ||
+                        !bucket.getRefillRate().equals(policy.getRefillRate()))) {
+
+            // Delete old bucket and recreate fresh
+            bucketRepository.delete(bucket);
+            bucket = null;
+        }
+
+        if (bucket == null) {
+            bucket = createBucket(identifier, policy);
+        }
 
         refillTokens(bucket);
 
+        boolean allowed = false;
+
         if (bucket.getTokens() >= 1) {
             bucket.setTokens(bucket.getTokens() - 1);
-            bucketRepository.save(bucket);
-            return;
+            allowed = true;
         }
 
-        long retryAfter = 1;
+        logRequest(identifier, tier, allowed);
 
-        throw new RateLimitExceededException(
-                retryAfter,
-                bucket.getCapacity(),
-                bucket.getTokens()
-        );
+        return allowed;
     }
+
+
 
 
     private TokenBucket createBucket(String identifier,

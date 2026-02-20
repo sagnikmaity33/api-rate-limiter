@@ -12,4 +12,9 @@ public class TestController {
     public String test() {
         return "Request Successful";
     }
+
+    @GetMapping("/burst")
+    public String burstTest() {
+        return "OK";
+    }
 }
