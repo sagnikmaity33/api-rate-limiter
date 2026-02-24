@@ -31,4 +31,6 @@ public class Subscription {
     private Tier tier;
 
     private LocalDateTime updatedAt;
+
+    private LocalDateTime expiresAt;
 }
