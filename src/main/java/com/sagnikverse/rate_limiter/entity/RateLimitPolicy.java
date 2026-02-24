@@ -1,19 +1,21 @@
 package com.sagnikverse.rate_limiter.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "rate_limit_policy")
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RateLimitPolicy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
 
     @Enumerated(EnumType.STRING)
     private Tier tier;

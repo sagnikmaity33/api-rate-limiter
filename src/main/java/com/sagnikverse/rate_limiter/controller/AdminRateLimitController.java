@@ -27,7 +27,8 @@ public class AdminRateLimitController {
      */
     @PostMapping("/tier/assign")
     public Subscription assignTier(@RequestBody Subscription request) {
-
+        System.out.println("Identifier: " + request.getIdentifier());
+        System.out.println("Tier: " + request.getTier());
         return subscriptionService
                 .assignTier(request.getIdentifier(),
                         request.getTier());
