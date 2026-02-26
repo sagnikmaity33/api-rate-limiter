@@ -12,11 +12,12 @@ public class HybridRateLimiterService implements RateLimiterService {
     private final DbTokenBucketService dbService;
 
     @Override
-    @CircuitBreaker(name = "redisRateLimiter", fallbackMethod = "fallbackToDb")
-    public boolean allowRequest(String identifier) {
-        return redisService.allowRequest(identifier);
-    }
+    private final RuleEngineService ruleEngineService;
 
+    @Override
+    public boolean allowRequest(RequestContext context) {
+        return ruleEngineService.evaluate(context);
+    }
     // MUST match signature: (String, Throwable)
     public boolean fallbackToDb(String identifier, Throwable ex) {
         System.out.println("Redis unavailable. Falling back to DB.");

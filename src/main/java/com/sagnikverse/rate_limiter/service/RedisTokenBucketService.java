@@ -18,8 +18,7 @@ import java.util.Collections;
 public class RedisTokenBucketService  {
 
     private final StringRedisTemplate redisTemplate;
-    private final SubscriptionService subscriptionService;
-    private final RateLimitPolicyRepository policyRepository;
+    public boolean allowRequest(String identifier)
 
     // -----------------------------
     // Lua Script with TTL
@@ -62,29 +61,31 @@ public class RedisTokenBucketService  {
     private final DefaultRedisScript<Long> redisScript =
             new DefaultRedisScript<>(LUA_SCRIPT, Long.class);
 
-    public boolean allowRequest(String identifier) {
 
-        Tier tier = subscriptionService.getTier(identifier);
 
-        if (tier == Tier.UNLIMITED) {
-            return true;
-        }
-
-        RateLimitPolicy policy = policyRepository
-                .findByTierAndActiveTrue(tier)
-                .orElseThrow(() -> new RuntimeException("Policy not found"));
-
-        String key = "bucket:" + identifier;
+    @CircuitBreaker(name = "redisRateLimiter", fallbackMethod = "fallbackToDb")
+    public boolean consume(String bucketKey,
+                           Integer capacity,
+                           Integer refillRate) {
 
         Long result = redisTemplate.execute(
                 redisScript,
-                Collections.singletonList(key),
-                policy.getCapacity().toString(),
-                policy.getRefillRate().toString(),
+                Collections.singletonList(bucketKey),
+                capacity.toString(),
+                refillRate.toString(),
                 String.valueOf(Instant.now().getEpochSecond()),
                 String.valueOf(3600)
         );
 
         return result != null && result == 1;
+    }
+
+    public boolean fallbackToDb(String bucketKey,
+                                Integer capacity,
+                                Integer refillRate,
+                                Throwable ex) {
+
+        System.out.println("Redis unavailable. Falling back to DB.");
+        return dbService.consume(bucketKey, capacity, refillRate);
     }
 }

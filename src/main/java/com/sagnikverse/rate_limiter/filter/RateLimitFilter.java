@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.sagnikverse.rate_limiter.engine.RequestContext;
+import com.sagnikverse.rate_limiter.service.SubscriptionService;
+
 import java.io.IOException;
 
 @Component
@@ -16,6 +19,7 @@ import java.io.IOException;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimiterService rateLimiterService;
+    private final SubscriptionService subscriptionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -25,7 +29,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         String identifier = extractIdentifier(request);
 
-        boolean allowed = rateLimiterService.allowRequest(identifier);
+        RequestContext context = RequestContext.builder()
+                .identifier(identifier)
+                .endpoint(request.getRequestURI())
+                .httpMethod(request.getMethod())
+                .requestTime(java.time.LocalDateTime.now())
+                .tier(subscriptionService.getTier(identifier))
+                .build();
+
+        boolean allowed = rateLimiterService.allowRequest(context);
 
         if (!allowed) {
             response.setStatus(429);

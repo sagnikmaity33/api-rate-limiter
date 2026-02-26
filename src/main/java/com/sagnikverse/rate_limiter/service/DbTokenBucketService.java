@@ -47,4 +47,31 @@ public class DbTokenBucketService {
 
         return false;
     }
+
+    @Transactional
+    public boolean consume(String bucketKey,
+                           Integer capacity,
+                           Integer refillRate) {
+
+        TokenBucket bucket = bucketRepository
+                .findByIdentifierForUpdate(bucketKey)
+                .orElse(null);
+
+        if (bucket == null) {
+            bucket = new TokenBucket();
+            bucket.setIdentifier(bucketKey);
+            bucket.setCapacity(capacity);
+            bucket.setRefillRate(refillRate);
+            bucket.setTokens(capacity.doubleValue());
+            bucket.setLastRefill(java.time.LocalDateTime.now());
+            bucketRepository.save(bucket);
+        }
+
+        if (bucket.getTokens() >= 1) {
+            bucket.setTokens(bucket.getTokens() - 1);
+            return true;
+        }
+
+        return false;
+    }
 }
