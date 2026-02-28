@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-@Component
+//@Component
 @RequiredArgsConstructor
 @Order(1)
 public class TierRule implements RateLimitRule {
@@ -34,7 +34,8 @@ public class TierRule implements RateLimitRule {
         return bucketService.execute(
                 key,
                 policy.getCapacity(),
-                policy.getRefillRate()
+                policy.getRefillRate(),
+                3600
         );
     }
 }

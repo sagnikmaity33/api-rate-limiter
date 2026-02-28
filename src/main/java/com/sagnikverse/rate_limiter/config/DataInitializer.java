@@ -31,7 +31,7 @@ public class DataInitializer implements CommandLineRunner {
                                 RateLimitPolicy.builder()
                                         .tier(tier)
                                         .capacity(capacity)
-                                        .refillRate(refillRate)
+                                        .refillRate((double) refillRate)
                                         .active(true)
                                         .build()
                         )

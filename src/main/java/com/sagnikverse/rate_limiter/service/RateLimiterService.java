@@ -1,6 +1,7 @@
 package com.sagnikverse.rate_limiter.service;
 
 
+import com.sagnikverse.rate_limiter.engine.RequestContext;
 
 /**
  * Abstraction for rate limiting strategy.

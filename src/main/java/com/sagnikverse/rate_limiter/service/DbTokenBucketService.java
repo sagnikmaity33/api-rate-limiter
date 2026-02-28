@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 
 @Service
 @RequiredArgsConstructor
@@ -32,7 +34,7 @@ public class DbTokenBucketService {
         if (bucket == null) {
             bucket = new TokenBucket();
             bucket.setIdentifier(identifier);
-            bucket.setCapacity(policy.getCapacity());
+            bucket.setCapacity(Double.valueOf(policy.getCapacity()));
             bucket.setRefillRate(policy.getRefillRate());
             bucket.setTokens(policy.getCapacity().doubleValue());
             bucket.setLastRefill(java.time.LocalDateTime.now());
@@ -51,21 +53,37 @@ public class DbTokenBucketService {
     @Transactional
     public boolean consume(String bucketKey,
                            Integer capacity,
-                           Integer refillRate) {
+                           Double refillRate) {
 
         TokenBucket bucket = bucketRepository
                 .findByIdentifierForUpdate(bucketKey)
                 .orElse(null);
 
+        LocalDateTime now = LocalDateTime.now();
+
         if (bucket == null) {
             bucket = new TokenBucket();
             bucket.setIdentifier(bucketKey);
-            bucket.setCapacity(capacity);
-            bucket.setRefillRate(refillRate);
+            bucket.setCapacity(capacity.doubleValue());
+            bucket.setRefillRate(refillRate);   // must be Double
             bucket.setTokens(capacity.doubleValue());
-            bucket.setLastRefill(java.time.LocalDateTime.now());
+            bucket.setLastRefill(LocalDateTime.now());
             bucketRepository.save(bucket);
         }
+
+        long secondsElapsed = java.time.Duration
+                .between(bucket.getLastRefill(), now)
+                .getSeconds();
+
+        double refill = secondsElapsed * bucket.getRefillRate();
+
+        double updatedTokens = Math.min(
+                bucket.getCapacity(),
+                bucket.getTokens() + refill
+        );
+
+        bucket.setTokens(updatedTokens);
+        bucket.setLastRefill(now);
 
         if (bucket.getTokens() >= 1) {
             bucket.setTokens(bucket.getTokens() - 1);

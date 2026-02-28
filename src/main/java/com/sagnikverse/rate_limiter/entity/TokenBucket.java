@@ -19,9 +19,9 @@ public class TokenBucket {
 
     private Double tokens;
 
-    private Integer capacity;
+    private Double capacity;
 
-    private Integer refillRate;
+    private Double refillRate;
 
     private LocalDateTime lastRefill;
 }

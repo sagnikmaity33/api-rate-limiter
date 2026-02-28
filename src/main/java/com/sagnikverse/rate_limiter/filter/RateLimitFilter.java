@@ -1,6 +1,7 @@
 package com.sagnikverse.rate_limiter.filter;
 
 import com.sagnikverse.rate_limiter.service.RateLimiterService;
+import com.sagnikverse.rate_limiter.service.RequestLogService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +21,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimiterService rateLimiterService;
     private final SubscriptionService subscriptionService;
+    private final RequestLogService requestLogService;
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -38,14 +41,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .build();
 
         boolean allowed = rateLimiterService.allowRequest(context);
-
         if (!allowed) {
             response.setStatus(429);
+            response.setHeader("X-RateLimit-Status", "BLOCKED");
             response.getWriter().write("Too Many Requests");
             return;
         }
 
-        filterChain.doFilter(request, response);
+        response.setHeader("X-RateLimit-Status", "ALLOWED");
+
+        requestLogService.log(
+                context.getIdentifier(),
+                context.getEndpoint(),
+                context.getTier(),
+                allowed
+        );
     }
 
     private String extractIdentifier(HttpServletRequest request) {

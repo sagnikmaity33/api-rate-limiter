@@ -29,4 +29,6 @@ public class RequestLog {
     private Boolean allowed;
 
     private LocalDateTime timestamp;
+    private String endpoint;
+
 }

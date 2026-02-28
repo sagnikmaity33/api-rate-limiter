@@ -18,7 +18,9 @@ import java.util.Collections;
 public class RedisTokenBucketService  {
 
     private final StringRedisTemplate redisTemplate;
-    public boolean allowRequest(String identifier)
+    private final DbTokenBucketService dbService;
+
+
 
     // -----------------------------
     // Lua Script with TTL
@@ -66,7 +68,8 @@ public class RedisTokenBucketService  {
     @CircuitBreaker(name = "redisRateLimiter", fallbackMethod = "fallbackToDb")
     public boolean consume(String bucketKey,
                            Integer capacity,
-                           Integer refillRate) {
+                           Double refillRate,
+                           Integer ttlSeconds) {
 
         Long result = redisTemplate.execute(
                 redisScript,
@@ -74,7 +77,7 @@ public class RedisTokenBucketService  {
                 capacity.toString(),
                 refillRate.toString(),
                 String.valueOf(Instant.now().getEpochSecond()),
-                String.valueOf(3600)
+                String.valueOf(ttlSeconds)
         );
 
         return result != null && result == 1;
@@ -82,10 +85,12 @@ public class RedisTokenBucketService  {
 
     public boolean fallbackToDb(String bucketKey,
                                 Integer capacity,
-                                Integer refillRate,
+                                Double refillRate,
+                                Integer ttlSeconds,
                                 Throwable ex) {
 
         System.out.println("Redis unavailable. Falling back to DB.");
+
         return dbService.consume(bucketKey, capacity, refillRate);
     }
 }

@@ -1,5 +1,7 @@
 package com.sagnikverse.rate_limiter.service;
 
+import com.sagnikverse.rate_limiter.engine.RequestContext;
+import com.sagnikverse.rate_limiter.engine.RuleEngineService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,7 +13,6 @@ public class HybridRateLimiterService implements RateLimiterService {
     private final RedisTokenBucketService redisService;
     private final DbTokenBucketService dbService;
 
-    @Override
     private final RuleEngineService ruleEngineService;
 
     @Override

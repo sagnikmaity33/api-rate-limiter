@@ -8,25 +8,32 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-@Order(3)
-public class TimeBasedRule implements RateLimitRule {
+@Order(2)
+public class IpUserCombinedRule implements RateLimitRule {
 
     private final BucketExecutionService bucketService;
 
     @Override
     public boolean supports(RequestContext context) {
-
-        int hour = context.getRequestTime().getHour();
-        return hour >= 9 && hour <= 17;
+        return context.getUserId() != null;
     }
 
     @Override
     public boolean isAllowed(RequestContext context) {
 
+        boolean userAllowed = bucketService.execute(
+                "user:" + context.getUserId(),
+                1000,
+                1000.0 / 3600,
+                3600
+        );
+
+        if (!userAllowed) return false;
+
         return bucketService.execute(
-                "time:peak:" + context.getIdentifier(),
-                50,
-                50.0,
+                "ip:" + context.getIdentifier(),
+                2000,
+                2000.0 / 3600,
                 3600
         );
     }

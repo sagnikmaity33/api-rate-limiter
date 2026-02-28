@@ -21,7 +21,7 @@ public class BucketCreationService {
 
         TokenBucket bucket = new TokenBucket();
         bucket.setIdentifier(identifier);
-        bucket.setCapacity(policy.getCapacity());
+        bucket.setCapacity(policy.getCapacity().doubleValue());
         bucket.setRefillRate(policy.getRefillRate());
         bucket.setTokens(policy.getCapacity().doubleValue());
         bucket.setLastRefill(LocalDateTime.now());

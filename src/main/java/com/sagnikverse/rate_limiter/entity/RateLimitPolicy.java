@@ -24,7 +24,7 @@ public class RateLimitPolicy {
 
     private Integer capacity;
 
-    private Integer refillRate;
+    private Double refillRate;
 
     private Boolean active = true;
 

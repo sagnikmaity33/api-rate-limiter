@@ -15,4 +15,5 @@ public class RequestContext {
     private String httpMethod;
     private LocalDateTime requestTime;
     private Tier tier;
+    private String userId;
 }
