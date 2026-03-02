@@ -16,4 +16,6 @@ public class RequestContext {
     private LocalDateTime requestTime;
     private Tier tier;
     private String userId;
+
+    private int cost;
 }

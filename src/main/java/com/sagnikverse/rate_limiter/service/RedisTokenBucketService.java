@@ -34,6 +34,7 @@ public class RedisTokenBucketService  {
                     "local refill_rate = tonumber(ARGV[2])\n" +
                     "local now = tonumber(ARGV[3])\n" +
                     "local ttl = tonumber(ARGV[4])\n" +
+                    "local cost = tonumber(ARGV[5]) -- New: Variable cost per request\n" +
                     "\n" +
                     "if not tokens then\n" +
                     "    tokens = capacity\n" +
@@ -43,19 +44,21 @@ public class RedisTokenBucketService  {
                     "    last_refill = tonumber(last_refill)\n" +
                     "end\n" +
                     "\n" +
+                    "-- Refill logic\n" +
                     "local delta = math.max(0, now - last_refill)\n" +
                     "local refill = delta * refill_rate\n" +
                     "tokens = math.min(capacity, tokens + refill)\n" +
                     "\n" +
                     "local allowed = 0\n" +
                     "\n" +
-                    "if tokens >= 1 then\n" +
-                    "    tokens = tokens - 1\n" +
+                    "-- Check against variable cost instead of hardcoded 1\n" +
+                    "if tokens >= cost then\n" +
+                    "    tokens = tokens - cost\n" +
                     "    allowed = 1\n" +
                     "end\n" +
                     "\n" +
-                    "redis.call(\"HSET\", KEYS[1], \"tokens\", tokens)\n" +
-                    "redis.call(\"HSET\", KEYS[1], \"last_refill\", now)\n" +
+                    "-- Update state\n" +
+                    "redis.call(\"HSET\", KEYS[1], \"tokens\", tokens, \"last_refill\", now)\n" +
                     "redis.call(\"EXPIRE\", KEYS[1], ttl)\n" +
                     "\n" +
                     "return allowed";
@@ -70,7 +73,9 @@ public class RedisTokenBucketService  {
     public boolean consume(String bucketKey,
                            Integer capacity,
                            Double refillRate,
-                           Integer ttlSeconds) {
+                           Integer ttlSeconds,
+                            Integer cost
+                           ) {
 
         Long result = redisTemplate.execute(
                 redisScript,
@@ -78,7 +83,8 @@ public class RedisTokenBucketService  {
                 capacity.toString(),
                 refillRate.toString(),
                 String.valueOf(Instant.now().getEpochSecond()),
-                String.valueOf(ttlSeconds)
+                String.valueOf(ttlSeconds),
+                cost.toString()
         );
 
         return result != null && result == 1;
@@ -88,10 +94,11 @@ public class RedisTokenBucketService  {
                                 Integer capacity,
                                 Double refillRate,
                                 Integer ttlSeconds,
+                                Integer cost,
                                 Throwable ex) {
 
         System.out.println("Redis unavailable. Falling back to DB.");
 
-        return dbService.consume(bucketKey, capacity, refillRate);
+        return dbService.consume(bucketKey, capacity, refillRate, cost);
     }
 }

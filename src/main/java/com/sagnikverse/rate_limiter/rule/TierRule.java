@@ -36,7 +36,8 @@ public class TierRule implements RateLimitRule {
                 key,
                 policy.getCapacity(),
                 policy.getRefillRate(),
-                3600
+                3600,
+                context.getCost()
         );
     }
 }

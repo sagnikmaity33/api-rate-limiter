@@ -4,6 +4,7 @@ import com.sagnikverse.rate_limiter.engine.RequestContext;
 import com.sagnikverse.rate_limiter.entity.AccessType;
 import com.sagnikverse.rate_limiter.entity.CircuitState;
 import com.sagnikverse.rate_limiter.entity.RequestLog;
+import com.sagnikverse.rate_limiter.resolver.OperationCostResolver;
 import com.sagnikverse.rate_limiter.service.*;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -25,6 +26,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RequestLogService requestLogService;
     private final UserCircuitBreakerService circuitBreakerService;
     private final AccessControlService accessControlService;
+    private final OperationCostResolver costResolver;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -73,6 +75,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
 
+        int cost = costResolver.resolveCost(
+                request.getRequestURI(),
+                request.getMethod()
+        );
+
+
         // 🔹 2️⃣ Build Context
         RequestContext context = RequestContext.builder()
                 .identifier(identifier)
@@ -80,6 +88,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .httpMethod(request.getMethod())
                 .requestTime(LocalDateTime.now())
                 .tier(subscriptionService.getTier(identifier))
+                .cost(cost)
                 .build();
 
         // 🔹 3️⃣ Evaluate Rate Limit Rules

@@ -13,7 +13,7 @@ public class BucketExecutionService {
 
 
     public boolean execute(String bucketKey, Integer capacity,
-                           Double refillRate, Integer ttlSeconds) {
-        return redisService.consume(bucketKey, capacity, refillRate, ttlSeconds);
+                           Double refillRate, Integer ttlSeconds, Integer cost) {
+        return redisService.consume(bucketKey, capacity, refillRate, ttlSeconds, cost);
     }
 }

@@ -25,7 +25,8 @@ public class IpUserCombinedRule implements RateLimitRule {
                 "user:" + context.getUserId(),
                 1000,
                 1000.0 / 3600,
-                3600
+                3600,
+                context.getCost()
         );
 
         if (!userAllowed) return false;
@@ -34,7 +35,8 @@ public class IpUserCombinedRule implements RateLimitRule {
                 "ip:" + context.getIdentifier(),
                 2000,
                 2000.0 / 3600,
-                3600
+                3600,context.getCost()
+
         );
     }
 }

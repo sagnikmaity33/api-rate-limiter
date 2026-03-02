@@ -27,7 +27,8 @@ public class TimeBasedRule implements RateLimitRule {
                 "time:peak:" + context.getIdentifier(),
                 50,
                 50.0,
-                3600
+                3600,
+                context.getCost()
         );
     }
 }

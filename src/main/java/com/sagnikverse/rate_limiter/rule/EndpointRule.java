@@ -39,7 +39,8 @@ public class EndpointRule implements RateLimitRule {
                 "endpoint:" + context.getEndpoint() + ":" + context.getIdentifier(),
                 limit.getCapacity(),
                 limit.getRefillRate(),
-                limit.getTtl()
+                limit.getTtl(),
+                context.getCost()
         );
     }
 }

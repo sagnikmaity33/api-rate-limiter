@@ -63,7 +63,6 @@ public class BurstRule implements RateLimitRule {
 //        );
 //    }
 
-
     @Override
     public boolean isAllowed(RequestContext context) {
 
@@ -71,28 +70,32 @@ public class BurstRule implements RateLimitRule {
 
         if (policy == null) return true;
 
-        double capacity = policy.getHourlyCapacity();
-        double refill = policy.getHourlyRefill();
+        String id = context.getIdentifier();
+
+        double hourlyCapacity = policy.getHourlyCapacity();
+        double hourlyRefill = policy.getHourlyRefill();
 
         if (timeWindowResolver.isPeak(context.getRequestTime())) {
-            capacity *= 0.5;
-            refill *= 0.5;
+            hourlyCapacity *= 0.5;
+            hourlyRefill *= 0.5;
         }
 
         boolean hourlyAllowed = bucketService.execute(
-                "burst:hour:" + context.getIdentifier(),
-                (int) capacity,
-                refill,
-                policy.getHourlyTtl()
+                "burst:hour:" + id,
+                (int) hourlyCapacity,
+                hourlyRefill,
+                policy.getHourlyTtl(),
+                context.getCost()
         );
 
         if (!hourlyAllowed) return false;
 
         return bucketService.execute(
-                "burst:5min:" + context.getIdentifier(),
+                "burst:5min:" + id,
                 policy.getBurstCapacity(),
                 policy.getBurstRefill(),
-                policy.getBurstTtl()
+                policy.getBurstTtl(),
+                context.getCost()
         );
     }
 }

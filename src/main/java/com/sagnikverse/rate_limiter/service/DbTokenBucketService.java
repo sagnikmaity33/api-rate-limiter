@@ -53,7 +53,8 @@ public class DbTokenBucketService {
     @Transactional
     public boolean consume(String bucketKey,
                            Integer capacity,
-                           Double refillRate) {
+                           Double refillRate,
+                           Integer cost) {
 
         TokenBucket bucket = bucketRepository
                 .findByIdentifierForUpdate(bucketKey)
@@ -65,9 +66,9 @@ public class DbTokenBucketService {
             bucket = new TokenBucket();
             bucket.setIdentifier(bucketKey);
             bucket.setCapacity(capacity.doubleValue());
-            bucket.setRefillRate(refillRate);   // must be Double
+            bucket.setRefillRate(refillRate);
             bucket.setTokens(capacity.doubleValue());
-            bucket.setLastRefill(LocalDateTime.now());
+            bucket.setLastRefill(now);
             bucketRepository.save(bucket);
         }
 
@@ -85,8 +86,8 @@ public class DbTokenBucketService {
         bucket.setTokens(updatedTokens);
         bucket.setLastRefill(now);
 
-        if (bucket.getTokens() >= 1) {
-            bucket.setTokens(bucket.getTokens() - 1);
+        if (bucket.getTokens() >= cost) {
+            bucket.setTokens(bucket.getTokens() - cost);
             return true;
         }
 
