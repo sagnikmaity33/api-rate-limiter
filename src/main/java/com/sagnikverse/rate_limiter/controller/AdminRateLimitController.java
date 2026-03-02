@@ -21,6 +21,7 @@ public class AdminRateLimitController {
     private final SubscriptionService subscriptionService;
     private final ReportService reportService;
     private final TokenBucketRepository bucketRepository;
+    private final UserCircuitBreakerService circuitBreakerService;
 
     /**
      * Assign tier to identifier.
@@ -66,5 +67,11 @@ public class AdminRateLimitController {
     public List<TokenBucket> getAllBuckets() {
 
         return bucketRepository.findAll();
+    }
+
+    @PostMapping("/circuit/unblock/{identifier}")
+    public String unblock(@PathVariable String identifier) {
+        circuitBreakerService.manualUnblock(identifier);
+        return "Unblocked " + identifier;
     }
 }

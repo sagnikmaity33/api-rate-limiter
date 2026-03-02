@@ -1,10 +1,10 @@
 package com.sagnikverse.rate_limiter.filter;
 
 import com.sagnikverse.rate_limiter.engine.RequestContext;
+import com.sagnikverse.rate_limiter.entity.AccessType;
+import com.sagnikverse.rate_limiter.entity.CircuitState;
 import com.sagnikverse.rate_limiter.entity.RequestLog;
-import com.sagnikverse.rate_limiter.service.RateLimiterService;
-import com.sagnikverse.rate_limiter.service.RequestLogService;
-import com.sagnikverse.rate_limiter.service.SubscriptionService;
+import com.sagnikverse.rate_limiter.service.*;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +23,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimiterService rateLimiterService;
     private final SubscriptionService subscriptionService;
     private final RequestLogService requestLogService;
+    private final UserCircuitBreakerService circuitBreakerService;
+    private final AccessControlService accessControlService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -32,6 +34,46 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         String identifier = extractIdentifier(request);
 
+        AccessType accessType =
+                accessControlService.checkAccess(identifier);
+
+        if (accessType == AccessType.BLACKLIST) {
+            response.setStatus(403);
+            response.setHeader("X-Access-Control", "BLACKLISTED");
+            response.getWriter().write("Access permanently blocked");
+            return;
+        }
+
+        if (accessType == AccessType.WHITELIST) {
+            response.setHeader("X-Access-Control", "WHITELISTED");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 🔹 1️⃣ Check Circuit State
+        CircuitState state = circuitBreakerService.getState(identifier);
+
+        if (state == CircuitState.OPEN) {
+            response.setStatus(429);
+            response.setHeader("X-Circuit-State", "OPEN");
+            response.getWriter().write("User temporarily blocked due to excessive violations");
+            return;
+        }
+
+        if (state == CircuitState.HALF_OPEN) {
+
+            boolean allowedTest =
+                    circuitBreakerService.allowHalfOpenRequest(identifier);
+
+            if (!allowedTest) {
+                response.setStatus(429);
+                response.setHeader("X-Circuit-State", "HALF_OPEN_BLOCK");
+                response.getWriter().write("Half-open test limit reached");
+                return;
+            }
+        }
+
+        // 🔹 2️⃣ Build Context
         RequestContext context = RequestContext.builder()
                 .identifier(identifier)
                 .endpoint(request.getRequestURI())
@@ -40,31 +82,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .tier(subscriptionService.getTier(identifier))
                 .build();
 
+        // 🔹 3️⃣ Evaluate Rate Limit Rules
         boolean allowed = rateLimiterService.allowRequest(context);
 
-        // Set headers
         response.setHeader("X-RateLimit-Tier", context.getTier().name());
-        response.setHeader("X-RateLimit-Status",
-                allowed ? "ALLOWED" : "BLOCKED");
+        response.setHeader("X-RateLimit-Status", allowed ? "ALLOWED" : "BLOCKED");
 
+        // 🔹 4️⃣ Handle Violation
         if (!allowed) {
+
+            circuitBreakerService.recordFailure(identifier);
+
             response.setStatus(429);
             response.getWriter().write("Too Many Requests");
 
-            // Async log
-            requestLogService.logAsync(
-                    buildLog(context, false)
-            );
+            requestLogService.logAsync(buildLog(context, false));
             return;
         }
 
-        // Async log
-        //commneted for benchmark
-//        requestLogService.logAsync(
-//                buildLog(context, true)
-//        );
+        // 🔹 5️⃣ Handle Success
+        circuitBreakerService.recordSuccess(identifier);
 
-        // IMPORTANT — Continue request flow
         filterChain.doFilter(request, response);
     }
 
