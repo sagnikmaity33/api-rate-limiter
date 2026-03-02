@@ -6,12 +6,18 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false #for high performance
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: 6379
       timeout: 200ms
+      lettuce:
+        pool:
+          max-active: 200
+          max-idle: 100
+          min-idle: 20
+          max-wait: 100ms
 
 # Moved OUT of the spring block
 rate:
@@ -27,3 +33,10 @@ resilience4j:
         wait-duration-in-open-state: 60s
         sliding-window-size: 10
         minimum-number-of-calls: 5
+
+server:
+  tomcat:
+    threads:
+      max: 500
+      min-spare: 50
+    accept-count: 200

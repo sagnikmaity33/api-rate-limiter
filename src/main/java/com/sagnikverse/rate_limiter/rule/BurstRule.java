@@ -4,6 +4,7 @@ import com.sagnikverse.rate_limiter.engine.RequestContext;
 import com.sagnikverse.rate_limiter.entity.BurstPolicy;
 import com.sagnikverse.rate_limiter.entity.Tier;
 import com.sagnikverse.rate_limiter.resolver.BurstPolicyResolver;
+import com.sagnikverse.rate_limiter.resolver.TimeWindowResolver;
 import com.sagnikverse.rate_limiter.service.BucketExecutionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.annotation.Order;
@@ -16,36 +17,79 @@ public class BurstRule implements RateLimitRule {
 
     private final BucketExecutionService bucketService;
     private final BurstPolicyResolver burstResolver;
+    private final TimeWindowResolver timeWindowResolver;
 
     @Override
     public boolean supports(RequestContext context) {
         return context.getTier() != Tier.UNLIMITED;
     }
+//no dependent on the burstRule, so removed it for performance
+//    @Override
+//    public boolean isAllowed(RequestContext context) {
+//
+//        BurstPolicy policy = burstResolver.resolve(context.getTier());
+//
+//        if (policy == null) {
+//            return true;
+//        }
+//
+//        String id = context.getIdentifier();
+//
+//        double hourlyCapacity = policy.getHourlyCapacity();
+//        double hourlyRefill = policy.getHourlyRefill();
+//
+//        // 🔥 Apply time-based multiplier safely
+//        if (timeWindowResolver.isPeak(context.getRequestTime())) {
+//            hourlyCapacity *= timeWindowResolver.capacityMultiplier();
+//            hourlyRefill *= timeWindowResolver.refillMultiplier();
+//        }
+//
+//        boolean hourlyAllowed = bucketService.execute(
+//                "burst:hour:" + id,
+//                (int) hourlyCapacity,
+//                hourlyRefill,
+//                policy.getHourlyTtl()
+//        );
+//
+//        if (!hourlyAllowed) {
+//            return false;
+//        }
+//
+//        return bucketService.execute(
+//                "burst:5min:" + id,
+//                policy.getBurstCapacity(),
+//                policy.getBurstRefill(),
+//                policy.getBurstTtl()
+//        );
+//    }
+
 
     @Override
     public boolean isAllowed(RequestContext context) {
 
         BurstPolicy policy = burstResolver.resolve(context.getTier());
 
-        if (policy == null) {
-            return true;
+        if (policy == null) return true;
+
+        double capacity = policy.getHourlyCapacity();
+        double refill = policy.getHourlyRefill();
+
+        if (timeWindowResolver.isPeak(context.getRequestTime())) {
+            capacity *= 0.5;
+            refill *= 0.5;
         }
 
-        String id = context.getIdentifier();
-
         boolean hourlyAllowed = bucketService.execute(
-                "burst:hour:" + id,
-                policy.getHourlyCapacity(),
-                policy.getHourlyRefill(),
+                "burst:hour:" + context.getIdentifier(),
+                (int) capacity,
+                refill,
                 policy.getHourlyTtl()
         );
 
-        if (!hourlyAllowed) {
-            return false;
-        }
+        if (!hourlyAllowed) return false;
 
         return bucketService.execute(
-                "burst:5min:" + id,
+                "burst:5min:" + context.getIdentifier(),
                 policy.getBurstCapacity(),
                 policy.getBurstRefill(),
                 policy.getBurstTtl()

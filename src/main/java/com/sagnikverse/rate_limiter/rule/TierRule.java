@@ -1,5 +1,6 @@
 package com.sagnikverse.rate_limiter.rule;
 
+import com.sagnikverse.rate_limiter.cache.PolicyCache;
 import com.sagnikverse.rate_limiter.engine.RequestContext;
 import com.sagnikverse.rate_limiter.entity.RateLimitPolicy;
 import com.sagnikverse.rate_limiter.entity.Tier;
@@ -16,6 +17,7 @@ public class TierRule implements RateLimitRule {
 
     private final BucketExecutionService bucketService;
     private final RateLimitPolicyRepository policyRepository;
+    private final PolicyCache policyCache;
 
     @Override
     public boolean supports(RequestContext context) {
@@ -25,9 +27,8 @@ public class TierRule implements RateLimitRule {
     @Override
     public boolean isAllowed(RequestContext context) {
 
-        RateLimitPolicy policy = policyRepository
-                .findByTierAndActiveTrue(context.getTier())
-                .orElseThrow();
+        RateLimitPolicy policy =
+                policyCache.getPolicy(context.getTier());
 
         String key = "tier:" + context.getIdentifier();
 

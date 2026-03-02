@@ -27,6 +27,8 @@ services:
     networks:
       - rate_limiter_net
 
+    command: redis-server --save "" --appendonly no
+
   app:
     build: .
     container_name: rate_limiter_app

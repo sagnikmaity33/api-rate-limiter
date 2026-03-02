@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -69,7 +70,10 @@ public class SubscriptionService {
         repository.save(sub);
 
         // Invalidate Redis bucket immediately
-        redisTemplate.delete("bucket:" + identifier);
+        Set<String> keys = redisTemplate.keys("*:" + identifier);
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
 
         // Invalidate DB bucket
         tokenBucketRepository.findByIdentifier(identifier)

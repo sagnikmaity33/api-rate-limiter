@@ -1,5 +1,6 @@
 package com.sagnikverse.rate_limiter.service;
 
+import com.sagnikverse.rate_limiter.cache.PolicyCache;
 import com.sagnikverse.rate_limiter.entity.*;
 import com.sagnikverse.rate_limiter.repository.RateLimitPolicyRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -19,7 +20,7 @@ public class RedisTokenBucketService  {
 
     private final StringRedisTemplate redisTemplate;
     private final DbTokenBucketService dbService;
-
+    private final PolicyCache policyCache;
 
 
     // -----------------------------
